@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thai Wah SFB — Value Selector</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;background:#0A1628;color:#E8F4F0;overflow:hidden;user-select:none;width:100vw;height:100vh;}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,168,107,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,168,107,0.04) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+    #screen-start{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 60%,rgba(0,168,107,0.12) 0%,#0A1628 70%);}
+    .sc{max-width:520px;width:92%;padding:44px 36px;border-radius:24px;text-align:center;background:rgba(6,30,55,0.72);backdrop-filter:blur(14px);border:1px solid rgba(0,168,107,0.25);}
+    .lbadge{display:inline-flex;align-items:center;gap:10px;background:rgba(0,168,107,0.15);border:1px solid rgba(0,168,107,0.35);border-radius:100px;padding:8px 20px;font-size:13px;font-weight:600;letter-spacing:2px;color:#06D6A0;text-transform:uppercase;margin-bottom:28px;}
+    .st{font-size:clamp(24px,4vw,36px);font-weight:700;line-height:1.2;margin-bottom:12px;}
+    .st span{display:block;background:linear-gradient(135deg,#00A86B,#06D6A0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .ss{font-size:15px;color:rgba(232,244,240,0.65);line-height:1.6;margin-bottom:32px;}
+    .igrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:32px;}
+    .ii{background:rgba(0,168,107,0.08);border:1px solid rgba(0,168,107,0.18);border-radius:14px;padding:14px 12px;font-size:12px;color:rgba(232,244,240,0.75);display:flex;flex-direction:column;gap:5px;}
+    .ii .ico{font-size:20px;}
+    .btn-go{width:100%;padding:15px 24px;background:linear-gradient(135deg,#00A86B,#009a5e);border:none;border-radius:16px;color:#fff;font-size:17px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 24px rgba(0,168,107,0.35);transition:transform .15s,box-shadow .15s;}
+    .btn-go:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,168,107,0.45);}
+    #game-wrap{position:relative;width:100vw;height:100vh;display:none;}
+    #webcam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:0.42;z-index:1;}
+    #game-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:30;}
+    #hud{position:absolute;top:0;left:0;right:0;z-index:40;pointer-events:none;display:flex;align-items:center;justify-content:space-between;padding:14px 18px;gap:10px;}
+    .hp{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:100px;font-size:12px;font-weight:600;background:rgba(6,30,55,0.72);backdrop-filter:blur(12px);border:1px solid rgba(0,168,107,0.22);pointer-events:auto;}
+    .hm{flex:1;max-width:420px;text-align:center;padding:9px 18px;border-radius:100px;font-size:13px;font-weight:600;background:rgba(6,30,55,0.72);backdrop-filter:blur(12px);border:1px solid rgba(255,209,102,0.28);}
+    .hm .lbl{font-size:10px;letter-spacing:1.5px;color:#FFD166;text-transform:uppercase;display:block;margin-bottom:1px;}
+    #dots{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:40;display:flex;gap:10px;align-items:center;pointer-events:none;}
+    .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,0.12);border:2px solid rgba(255,255,255,0.2);transition:all .3s;}
+    .dot.on{background:#00A86B;border-color:#06D6A0;box-shadow:0 0 8px rgba(0,168,107,0.7);}
+    .pdot{width:7px;height:7px;border-radius:50%;background:#ef4444;position:relative;}
+    .pdot::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:rgba(239,68,68,0.4);animation:pls 1.5s infinite;}
+    .pdot.on{background:#00A86B;}.pdot.on::after{background:rgba(0,168,107,0.4);}
+    @keyframes pls{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:0}}
+    #hand-tip{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);z-index:35;display:none;padding:8px 20px;border-radius:100px;font-size:13px;color:#FFD166;white-space:nowrap;background:rgba(6,30,55,0.72);backdrop-filter:blur(12px);border:1px solid rgba(255,209,102,0.3);}
+    #modal-result{position:fixed;inset:0;z-index:80;background:rgba(5,15,30,0.92);display:none;align-items:center;justify-content:center;padding:20px;}
+    #modal-result.show{display:flex;}
+    .rcrd{max-width:640px;width:100%;border-radius:24px;padding:36px 28px;background:rgba(6,30,55,0.88);backdrop-filter:blur(16px);border:1px solid rgba(0,168,107,0.3);max-height:90vh;overflow-y:auto;}
+    .rh{text-align:center;margin-bottom:24px;}
+    .rh h2{font-size:22px;font-weight:700;margin-bottom:6px;background:linear-gradient(135deg,#06D6A0,#00A86B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .rh p{font-size:13px;color:rgba(232,244,240,0.55);}
+    .ritem{background:rgba(0,168,107,0.08);border:1px solid rgba(0,168,107,0.2);border-radius:16px;padding:16px 18px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;}
+    .ritem .emo{font-size:30px;flex-shrink:0;}
+    .ritem .nm{font-size:14px;font-weight:700;margin-bottom:4px;}
+    .ritem .nm .en{color:#06D6A0;}
+    .ritem .nm .th{color:rgba(232,244,240,0.65);font-size:12px;margin-left:5px;}
+    .ritem .wy{font-size:12px;line-height:1.65;color:rgba(232,244,240,0.75);}
+    .sbadge{display:inline-block;font-size:9px;background:rgba(255,209,102,0.18);border:1px solid rgba(255,209,102,0.4);color:#FFD166;border-radius:100px;padding:2px 9px;letter-spacing:1px;text-transform:uppercase;margin-left:5px;vertical-align:middle;}
+    .btn-rst{width:100%;margin-top:18px;padding:13px;border-radius:14px;background:linear-gradient(135deg,#00A86B,#06D6A0);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+    /* pinch feedback */
+    #pfb{position:absolute;z-index:45;display:none;padding:7px 16px;border-radius:10px;font-size:13px;font-weight:700;color:#fff;pointer-events:none;background:rgba(0,168,107,0.9);white-space:nowrap;}
+  </style>
+</head>
+<body>
+<div id="screen-start">
+  <div class="sc">
+    <div class="lbadge"><i class="fa-solid fa-seedling"></i> Thai Wah · SFB Program</div>
+    <h1 class="st">Food Solution DNA<span>เลือก 3 ค่านิยมองค์กร</span></h1>
+    <p class="ss">ถ้าองค์กรเราเป็น <strong>Food Solution Company</strong><br>คนในองค์กรต้องมีคุณสมบัติอะไรบ้าง?<br>เลือก 3 ค่านิยมที่คุณเชื่อว่าสำคัญที่สุด</p>
+    <div class="igrid">
+      <div class="ii"><span class="ico">🤏</span><strong>AR Mode</strong>จีบนิ้วชี้+โป้ง เพื่อหยิบการ์ด ลากไปวางช่องบน</div>
+      <div class="ii"><span class="ico">🖱️</span><strong>Mouse Mode</strong>คลิกค้างลากการ์ด หรือคลิกเดียวเพื่อวาง</div>
+      <div class="ii"><span class="ico">🟢</span><strong>ระยะ Pinch</strong>นิ้วชี้-โป้งใกล้กัน &lt;55px = จับได้</div>
+      <div class="ii"><span class="ico">💡</span><strong>รับ Feedback</strong>ครบ 3 ใบ → เห็นเหตุผลทันที</div>
+    </div>
+    <button class="btn-go" id="btn-start"><i class="fa-solid fa-play"></i> เริ่มกิจกรรม</button>
+  </div>
+</div>
+
+<div id="game-wrap">
+  <video id="webcam" autoplay playsinline muted></video>
+  <canvas id="game-canvas"></canvas>
+  <div id="hud">
+    <div class="hp"><div class="pdot" id="pdot"></div><span id="cam-txt">รอกล้อง...</span></div>
+    <div class="hm"><span class="lbl">โจทย์วันนี้</span>องค์กร Food Solution ต้องการคนที่มีคุณสมบัติอะไร?</div>
+    <div class="hp"><i class="fa-solid fa-star" style="color:#FFD166"></i>เลือก <span id="sel-count" style="color:#06D6A0;font-weight:700">0</span> / 3</div>
+  </div>
+  <div id="dots"><div class="dot" id="d0"></div><div class="dot" id="d1"></div><div class="dot" id="d2"></div></div>
+  <div id="hand-tip"><i class="fa-solid fa-hand-sparkles"></i> ชูมือให้กล้องเห็น แล้วจีบนิ้วชี้+โป้ง เพื่อหยิบการ์ด</div>
+  <div id="pfb">🤏 หยิบแล้ว!</div>
+</div>
+
+<div id="modal-result">
+  <div class="rcrd">
+    <div class="rh"><div style="font-size:40px;margin-bottom:10px">🏆</div><h2>DNA ของคุณในฐานะ Food Solution Leader</h2><p>3 ค่านิยมที่คุณเลือก — และเหตุผลว่าทำไมถึงสำคัญ</p></div>
+    <div id="result-items"></div>
+    <button class="btn-rst" id="btn-restart"><i class="fa-solid fa-rotate-left"></i> เล่นใหม่</button>
+  </div>
+</div>
+
+<audio id="snd-pick"   src="https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav" preload="auto"></audio>
+<audio id="snd-place"  src="https://assets.mixkit.co/active_storage/sfx/2019/2019-84.wav" preload="auto"></audio>
+<audio id="snd-remove" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-84.wav" preload="auto"></audio>
+<audio id="snd-done"   src="https://assets.mixkit.co/active_storage/sfx/2572/2572-84.wav" preload="auto"></audio>
+
+<script>
+const VALUES=[
+  {id:'innovation',en:'Innovation',    th:'นวัตกรรม',          emoji:'💡',sfb:true,
+   why:'Food Solution ต้องพัฒนาผลิตภัณฑ์อย่างต่อเนื่อง คนที่มี Innovation mindset จะมองเห็น opportunity ก่อนคนอื่น — ตรงกับหัวใจ SFB: Stronger'},
+  {id:'customer',  en:'Customer Focus',th:'ใส่ใจลูกค้า',        emoji:'🤝',sfb:false,
+   why:'ลูกค้า Food Solution มีความต้องการซับซ้อน ตั้งแต่รสชาติ โภชนาการ ถึง sustainability คนที่ฟังและตอบสนองลูกค้าได้จะสร้าง loyalty ระยะยาว'},
+  {id:'quality',   en:'Quality First', th:'คุณภาพนำหน้า',       emoji:'⭐',sfb:false,
+   why:'ในอุตสาหกรรมอาหาร คุณภาพไม่ใช่ตัวเลือก — แต่เป็นข้อกำหนดขั้นต้น ความผิดพลาดกระทบสุขภาพผู้บริโภคและความเชื่อมั่นในแบรนด์ทันที'},
+  {id:'agility',   en:'Agility',       th:'ปรับตัวเร็ว',         emoji:'⚡',sfb:true,
+   why:'ตลาดอาหารเปลี่ยนเร็วมาก — trend healthy food, plant-based, functional food เกิดขึ้นทุกปี คนปรับตัวเร็วจะ capture market ก่อนคู่แข่ง — SFB: Faster'},
+  {id:'ownership', en:'Ownership',     th:'รับผิดชอบ-เป็นเจ้าของ',emoji:'🎯',sfb:true,
+   why:'ใน supply chain อาหาร ถ้าทุกคนรอให้คนอื่นตัดสินใจ ปัญหาจะเรื้อรัง Ownership mindset = act ทันที ไม่โยนความรับผิดชอบ — SFB: Better'},
+  {id:'collab',    en:'Collaboration', th:'ร่วมมือกัน',          emoji:'🫱',sfb:false,
+   why:'Food Solution ต้องการ cross-function teamwork สูง ตั้งแต่ R&D, Production, Sales จนถึง Logistics การร่วมมือข้ามทีมเป็นตัวเร่งความเร็วองค์กร'},
+  {id:'sustain',   en:'Sustainability',th:'ยั่งยืน',             emoji:'🌱',sfb:false,
+   why:'ผู้บริโภค Gen Z เลือกแบรนด์อาหารจาก environmental impact Sustainability mindset ทำให้องค์กรพร้อมรับ regulation และ market expectation อนาคต'},
+  {id:'growth',    en:'Growth Mindset',th:'เรียนรู้ตลอด',        emoji:'📈',sfb:true,
+   why:'AI และ automation กำลังเปลี่ยน Food industry คนเรียนรู้เร็วและไม่กลัวเปลี่ยนจะอยู่รอดและเติบโต — รากฐาน SFB ทั้ง 3 มิติ'},
+  {id:'integrity', en:'Integrity',     th:'ซื่อสัตย์-โปร่งใส',   emoji:'🔒',sfb:true,
+   why:'ความไว้วางใจของผู้บริโภคต่อแบรนด์อาหารสร้างยาก แต่พังได้ในวันเดียว คนที่มี Integrity จะปกป้องชื่อเสียงองค์กรในทุกการตัดสินใจ'}
+];
+
+// ── layout constants ──
+const CW=118, CH=96;
+const SLOT_W=130, SLOT_H=96, SLOT_GAP=14;
+const SLOT_Y=106;
+const PINCH_DIST=55;
+
+let cards=[], slots=[], dragging=null;
+let cx=400,cy=300,tcx=400,tcy=300;
+let pinching=false,wasPinching=false,skeleton=[];
+
+const canvas=document.getElementById('game-canvas');
+const ctx=canvas.getContext('2d');
+const video=document.getElementById('webcam');
+const gw=document.getElementById('game-wrap');
+const selEl=document.getElementById('sel-count');
+const htEl=document.getElementById('hand-tip');
+const pdotEl=document.getElementById('pdot');
+const camEl=document.getElementById('cam-txt');
+const pfbEl=document.getElementById('pfb');
+
+function sfx(id){const a=document.getElementById(id);if(a){a.currentTime=0;a.play().catch(()=>{});}}
+
+function resize(){
+  canvas.width=gw.clientWidth; canvas.height=gw.clientHeight;
+  layoutSlots(); layoutCards();
+}
+window.addEventListener('resize',resize);
+
+function layoutSlots(){
+  const tot=3*SLOT_W+2*SLOT_GAP, sx=(canvas.width-tot)/2;
+  slots=Array.from({length:3},(_,i)=>({x:sx+i*(SLOT_W+SLOT_GAP),y:SLOT_Y,w:SLOT_W,h:SLOT_H,valueId:null}));
+}
+
+function layoutCards(){
+  const shuffled=[...VALUES].sort(()=>Math.random()-.5);
+  const cols=5, gapX=10, gapY=8;
+  const totalW=cols*(CW+gapX)-gapX;
+  const padX=(canvas.width-totalW)/2;
+  const startY=canvas.height-210;
+  cards=shuffled.map((v,i)=>({
+    id:v.id,
+    x:padX+(i%cols)*(CW+gapX),
+    y:startY+Math.floor(i/cols)*(CH+gapY)
+  }));
+}
+
+function rr(c,x,y,w,h,r){c.beginPath();c.roundRect(x,y,w,h,r);}
+function pip(px,py,x,y,w,h){return px>=x&&px<=x+w&&py>=y&&py<=y+h;}
+
+function drawCard(v,x,y,w,h,state){
+  ctx.save();
+  // shadow
+  ctx.fillStyle=state==='placed'?'rgba(0,168,107,0.35)':state==='drag'?'rgba(255,209,102,0.3)':'rgba(0,0,0,0.28)';
+  rr(ctx,x+2,y+5,w,h,14);ctx.fill();
+  // face
+  const g=ctx.createLinearGradient(x,y,x+w,y+h);
+  if(state==='placed'){g.addColorStop(0,'rgba(0,168,107,0.88)');g.addColorStop(1,'rgba(6,214,160,0.82)');}
+  else if(state==='drag'){g.addColorStop(0,'rgba(255,209,102,0.92)');g.addColorStop(1,'rgba(255,107,53,0.85)');}
+  else if(state==='hover'){g.addColorStop(0,'rgba(10,30,58,0.96)');g.addColorStop(1,'rgba(0,80,50,0.6)');}
+  else{g.addColorStop(0,'rgba(10,22,40,0.93)');g.addColorStop(1,'rgba(6,30,55,0.88)');}
+  ctx.fillStyle=g;
+  ctx.strokeStyle=state==='placed'?'rgba(255,255,255,0.55)':state==='drag'?'rgba(255,209,102,0.8)':state==='hover'?'rgba(0,168,107,0.75)':'rgba(0,168,107,0.32)';
+  ctx.lineWidth=2;
+  rr(ctx,x,y,w,h,14);ctx.fill();ctx.stroke();
+  // emoji
+  ctx.font='22px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(v.emoji,x+w/2,y+h/2-15);
+  // EN
+  ctx.font='bold 11px IBM Plex Sans';
+  ctx.fillStyle=state==='placed'?'#fff':'#06D6A0';
+  ctx.fillText(v.en,x+w/2,y+h/2+6);
+  // TH
+  ctx.font='500 9px IBM Plex Sans Thai';
+  ctx.fillStyle=state==='placed'?'rgba(255,255,255,0.78)':'rgba(232,244,240,0.52)';
+  ctx.fillText(v.th,x+w/2,y+h/2+20);
+  // SFB badge
+  if(v.sfb){ctx.font='bold 8px IBM Plex Sans';ctx.fillStyle='#FFD166';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('SFB',x+w-7,y+7);}
+  ctx.restore();
+}
+
+function drawSlot(s,i){
+  const inSlot=pip(cx,cy,s.x,s.y,s.w,s.h)&&dragging&&!s.valueId;
+  ctx.save();
+  ctx.fillStyle=inSlot?'rgba(0,168,107,0.2)':'rgba(10,22,40,0.5)';
+  ctx.strokeStyle=inSlot?'rgba(0,168,107,0.8)':'rgba(0,168,107,0.25)';
+  ctx.lineWidth=inSlot?2:1.5;ctx.setLineDash([6,5]);
+  rr(ctx,s.x,s.y,s.w,s.h,14);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+  if(!s.valueId){
+    ctx.fillStyle='rgba(232,244,240,0.22)';ctx.font='500 10px IBM Plex Sans Thai';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('ช่องที่'+(i+1),s.x+s.w/2,s.y+s.h/2);
+  }
+  ctx.restore();
+}
+
+function drawZoneLabel(){
+  const tot=3*SLOT_W+2*SLOT_GAP,sx=(canvas.width-tot)/2;
+  ctx.save();
+  ctx.fillStyle='rgba(6,30,55,0.55)';
+  rr(ctx,sx-18,SLOT_Y-38,tot+36,SLOT_H+54,18);ctx.fill();
+  ctx.strokeStyle='rgba(0,168,107,0.22)';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.fillStyle='rgba(0,168,107,0.75)';ctx.font='500 11px IBM Plex Sans Thai';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('▼  ลากการ์ดมาวางที่นี่  ▼',canvas.width/2,SLOT_Y-16);
+  ctx.restore();
+}
+
+function drawSkeleton(){
+  if(!skeleton.length)return;
+  const W=canvas.width,H=canvas.height;
+  const p=i=>({x:(1-skeleton[i].x)*W,y:skeleton[i].y*H});
+  ctx.save();ctx.lineWidth=2.5;ctx.strokeStyle='rgba(0,168,107,0.32)';
+  [[0,1,2,3,4],[0,5,6,7,8],[9,10,11,12],[13,14,15,16],[0,17,18,19,20]].forEach(seg=>{
+    ctx.beginPath();seg.forEach((k,j)=>{const pt=p(k);j===0?ctx.moveTo(pt.x,pt.y):ctx.lineTo(pt.x,pt.y);});ctx.stroke();
+  });
+  for(let i=0;i<skeleton.length;i++){const pt=p(i);ctx.beginPath();ctx.arc(pt.x,pt.y,i===4||i===8?6:3.5,0,Math.PI*2);ctx.fillStyle=i===4||i===8?'#FFD166':'rgba(6,214,160,0.75)';ctx.fill();}
+  ctx.restore();
+}
+
+function drawCursor(){
+  const col=dragging?'#FFD166':pinching?'#00A86B':'#06D6A0';
+  ctx.save();
+  ctx.strokeStyle=col;ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.arc(cx,cy,13,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle=col+'44';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(cx,cy,21+Math.sin(Date.now()/200)*3,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  cx+=(tcx-cx)*0.22;cy+=(tcy-cy)*0.22;
+
+  drawZoneLabel();
+  slots.forEach((s,i)=>drawSlot(s,i));
+
+  // placed cards in slots
+  slots.forEach(s=>{
+    if(!s.valueId)return;
+    if(dragging&&dragging.fromSlotIdx!==undefined&&slots[dragging.fromSlotIdx]===s)return;
+    const v=VALUES.find(x=>x.id===s.valueId);
+    if(v)drawCard(v,s.x+(s.w-CW)/2,s.y+(s.h-CH)/2,CW,CH,'placed');
+  });
+
+  // deck cards
+  const inSlotIds=slots.map(s=>s.valueId).filter(Boolean);
+  cards.forEach((c,i)=>{
+    if(inSlotIds.includes(c.id))return;
+    if(dragging&&dragging.cardIdx===i)return;
+    const v=VALUES.find(x=>x.id===c.id);
+    const hov=pip(cx,cy,c.x,c.y,CW,CH)&&!dragging;
+    drawCard(v,c.x,c.y,CW,CH,hov?'hover':'normal');
+  });
+
+  // dragging card on top
+  if(dragging){
+    const v=VALUES.find(x=>x.id===dragging.id);
+    drawCard(v,cx-dragging.offX,cy-dragging.offY,CW,CH,'drag');
+  }
+
+  drawSkeleton();
+  drawCursor();
+  handleInteraction();
+  requestAnimationFrame(render);
+}
+
+// ─── UNIFIED INTERACTION (AR + Mouse share same logic) ───
+function tryPickUp(px,py){
+  // 1. pick from slot
+  for(let i=0;i<slots.length;i++){
+    const s=slots[i];
+    if(s.valueId&&pip(px,py,s.x,s.y,s.w,s.h)){
+      dragging={id:s.valueId,offX:CW/2,offY:CH/2,fromSlotIdx:i};
+      s.valueId=null;updateCounter();sfx('snd-pick');return true;
+    }
+  }
+  // 2. pick from deck (top-most first)
+  const inSlotIds=slots.map(s=>s.valueId).filter(Boolean);
+  for(let i=cards.length-1;i>=0;i--){
+    const c=cards[i];
+    if(inSlotIds.includes(c.id))continue;
+    if(pip(px,py,c.x,c.y,CW,CH)){
+      dragging={id:c.id,cardIdx:i,offX:px-c.x,offY:py-c.y};
+      sfx('snd-pick');return true;
+    }
+  }
+  return false;
+}
+
+function tryDrop(px,py){
+  if(!dragging)return;
+  const dcx=px-dragging.offX+CW/2, dcy=py-dragging.offY+CH/2;
+  let dropped=false;
+  for(let i=0;i<slots.length;i++){
+    const s=slots[i];
+    if(!s.valueId&&pip(dcx,dcy,s.x,s.y,s.w,s.h)){
+      s.valueId=dragging.id;dropped=true;sfx('snd-place');
+      updateCounter();checkDone();break;
+    }
+  }
+  if(!dropped&&dragging.fromSlotIdx!==undefined){
+    slots[dragging.fromSlotIdx].valueId=dragging.id;updateCounter();
+  }
+  dragging=null;
+}
+
+// AR-specific interaction (called from render loop)
+function handleInteraction(){
+  const justPinched =pinching&&!wasPinching;
+  const justReleased=!pinching&&wasPinching;
+
+  if(justPinched&&!dragging){
+    if(tryPickUp(cx,cy)){
+      // show feedback near cursor
+      pfbEl.style.left=(cx+20)+'px';pfbEl.style.top=(cy-30)+'px';
+      pfbEl.style.display='block';
+      setTimeout(()=>{pfbEl.style.display='none';},900);
+    }
+  }
+  if(justReleased&&dragging) tryDrop(cx,cy);
+  wasPinching=pinching;
+}
+
+// Mouse
+canvas.addEventListener('mousedown',e=>{
+  const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  tcx=mx;tcy=my;cx=mx;cy=my;
+  tryPickUp(mx,my);
+});
+canvas.addEventListener('mousemove',e=>{
+  const r=canvas.getBoundingClientRect();
+  tcx=e.clientX-r.left;tcy=e.clientY-r.top;
+});
+window.addEventListener('mouseup',e=>{
+  if(!dragging)return;
+  const r=canvas.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  cx=mx;cy=my;tryDrop(mx,my);
+});
+
+// Touch
+canvas.addEventListener('touchstart',e=>{
+  const t=e.touches[0],r=canvas.getBoundingClientRect(),mx=t.clientX-r.left,my=t.clientY-r.top;
+  tcx=mx;tcy=my;cx=mx;cy=my;tryPickUp(mx,my);
+},{passive:true});
+canvas.addEventListener('touchmove',e=>{
+  const t=e.touches[0],r=canvas.getBoundingClientRect();
+  tcx=t.clientX-r.left;tcy=t.clientY-r.top;
+},{passive:true});
+window.addEventListener('touchend',e=>{
+  if(!dragging)return;
+  const t=e.changedTouches[0],r=canvas.getBoundingClientRect(),mx=t.clientX-r.left,my=t.clientY-r.top;
+  cx=mx;cy=my;tryDrop(mx,my);
+});
+
+function updateCounter(){
+  const sel=slots.map(s=>s.valueId).filter(Boolean);
+  selEl.textContent=sel.length;
+  for(let i=0;i<3;i++)document.getElementById('d'+i).classList.toggle('on',i<sel.length);
+}
+function checkDone(){
+  if(slots.map(s=>s.valueId).filter(Boolean).length===3) setTimeout(showResult,500);
+}
+function showResult(){
+  sfx('snd-done');
+  const sel=slots.map(s=>s.valueId).filter(Boolean);
+  const w=document.getElementById('result-items');w.innerHTML='';
+  sel.forEach(id=>{
+    const v=VALUES.find(x=>x.id===id);
+    const d=document.createElement('div');d.className='ritem';
+    d.innerHTML=`<div class="emo">${v.emoji}</div><div><div class="nm"><span class="en">${v.en}</span><span class="th">/ ${v.th}</span>${v.sfb?'<span class="sbadge">SFB Core</span>':''}</div><div class="wy">${v.why}</div></div>`;
+    w.appendChild(d);
+  });
+  document.getElementById('modal-result').classList.add('show');
+}
+
+// MediaPipe
+const hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.55,minTrackingConfidence:0.55});
+hands.onResults(res=>{
+  if(res.multiHandLandmarks&&res.multiHandLandmarks.length>0){
+    htEl.style.display='none';
+    const lm=res.multiHandLandmarks[0];
+    skeleton=lm;
+    tcx=(1-lm[8].x)*canvas.width;
+    tcy=lm[8].y*canvas.height;
+    const dx=(lm[4].x-lm[8].x)*canvas.width;
+    const dy=(lm[4].y-lm[8].y)*canvas.height;
+    pinching=Math.sqrt(dx*dx+dy*dy)<PINCH_DIST;
+  } else {
+    skeleton=[];pinching=false;
+    htEl.style.display='block';
+  }
+});
+
+function startCam(){
+  const cam=new Camera(video,{onFrame:async()=>{await hands.send({image:video});},width:1280,height:720});
+  cam.start()
+    .then(()=>{pdotEl.classList.add('on');camEl.textContent='AR กล้องทำงาน';})
+    .catch(()=>{camEl.textContent='ใช้ Mouse Mode';});
+}
+
+document.getElementById('btn-start').addEventListener('click',()=>{
+  document.getElementById('screen-start').style.display='none';
+  gw.style.display='block';
+  resize();startCam();render();
+});
+document.getElementById('btn-restart').addEventListener('click',()=>{
+  document.getElementById('modal-result').classList.remove('show');
+  slots.forEach(s=>s.valueId=null);dragging=null;updateCounter();layoutCards();
+});
+</script>
+</body>
+</html>
